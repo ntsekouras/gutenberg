@@ -34,6 +34,8 @@ import { insertAt, moveTo } from './array';
  * context, the value of which is an array of block client IDs existing within
  * that nesting context.
  *
+ * @todo noahtallen
+ *
  * @param {Array}   blocks       Blocks to map.
  * @param {?string} rootClientId Assumed root client ID.
  *
@@ -969,6 +971,19 @@ export const blocks = flow(
 				return omit( state, action.removedClientIds );
 		}
 
+		return state;
+	},
+
+	controlledInnerBlocks(
+		state = {},
+		{ type, clientId, hasControlledInnerBlocks }
+	) {
+		if ( type === 'SET_HAS_CONTROLLED_INNER_BLOCKS' ) {
+			return {
+				...state,
+				[ clientId ]: hasControlledInnerBlocks,
+			};
+		}
 		return state;
 	},
 } );
