@@ -80,8 +80,7 @@ class InnerBlocks extends Component {
 			block,
 			templateLock,
 			__experimentalBlocks,
-			replaceInnerBlocks,
-			__unstableMarkNextChangeAsNotPersistent,
+			initControlledBlocks,
 		} = this.props;
 		const { innerBlocks } = block;
 		// Only synchronize innerBlocks with template if innerBlocks are empty or a locking all exists directly on the block.
@@ -97,8 +96,7 @@ class InnerBlocks extends Component {
 
 		// Set controlled blocks value from parent, if any.
 		if ( __experimentalBlocks ) {
-			__unstableMarkNextChangeAsNotPersistent();
-			replaceInnerBlocks( __experimentalBlocks, false );
+			initControlledBlocks( __experimentalBlocks );
 		}
 	}
 
@@ -267,6 +265,7 @@ const ComposedInnerBlocks = compose( [
 			replaceInnerBlocks,
 			__unstableMarkNextChangeAsNotPersistent,
 			updateBlockListSettings,
+			setHasControlledInnerBlocks,
 		} = dispatch( 'core/block-editor' );
 		const {
 			block,
@@ -274,19 +273,27 @@ const ComposedInnerBlocks = compose( [
 			templateInsertUpdatesSelection = true,
 		} = ownProps;
 
+		const wrappedReplaceInnerBlocks = ( blocks, forceUpdateSelection ) => {
+			replaceInnerBlocks(
+				clientId,
+				blocks,
+				forceUpdateSelection !== undefined
+					? forceUpdateSelection
+					: block.innerBlocks.length === 0 &&
+							templateInsertUpdatesSelection &&
+							blocks.length !== 0
+			);
+		};
+
+		const initControlledBlocks = ( blocks ) => {
+			setHasControlledInnerBlocks( clientId, true );
+			__unstableMarkNextChangeAsNotPersistent();
+			wrappedReplaceInnerBlocks( blocks, false );
+		};
+
 		return {
-			replaceInnerBlocks( blocks, forceUpdateSelection ) {
-				replaceInnerBlocks(
-					clientId,
-					blocks,
-					forceUpdateSelection !== undefined
-						? forceUpdateSelection
-						: block.innerBlocks.length === 0 &&
-								templateInsertUpdatesSelection &&
-								blocks.length !== 0
-				);
-			},
-			__unstableMarkNextChangeAsNotPersistent,
+			initControlledBlocks,
+			replaceInnerBlocks: wrappedReplaceInnerBlocks,
 			updateNestedSettings( settings ) {
 				dispatch( updateBlockListSettings( clientId, settings ) );
 			},
