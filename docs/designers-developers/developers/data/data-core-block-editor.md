@@ -69,10 +69,35 @@ containing its `blockName`, `clientId`, and current `attributes` state. This
 is not the block's registration settings, which must be retrieved from the
 blocks module registration store.
 
+This selector handles two cases for different types of entities within the
+block editor:
+1. A parent entity. For the parent entity, it wants to traverse through the
+   block tree, but stop when it reaches a different entity, like a template
+   part. In this scenario, withImmediateChildren is false deep into the block
+   tree. In other words, if an InnerBlock controller is reached, the selector
+   is only memoized based on the controller's attributes, NOT the block cache
+   state. The block cache state changes when the controlled inner blocks
+   change, which is not applicable to a parent entity, so we do not want to
+   trigger any updates.
+2. A child controller. For the child controller, it needs to be aware of its
+   direct children. As a result, it is memoized on the block cache state,
+   since it does want to be aware of changes to its inner blocks. If it were
+   only memoized on attributes, it would not update as its inner blocks
+   change.
+
+In most cases, both of the above are true. For example, a template part acts
+as a "child" controller since it updates as its inner blocks change. But as
+it traverses into the block tree, it acts as a "parent", since
+withImmediateChildren will not be passed down as this selector recurses. So,
+as a controller, it can listen directly as its inner blocks change without
+seeing any changes inside of any controllers which may happen to exist in its
+inner blocks.
+
 _Parameters_
 
 -   _state_ `Object`: Editor state.
 -   _clientId_ `string`: Block client ID.
+-   _withImmediateChildren_ `[boolean]`: Use this parameter to ignore whether inner blocks are controlled. Helpful for the inner block component, which needs to see its children, even though they are controlled.
 
 _Returns_
 

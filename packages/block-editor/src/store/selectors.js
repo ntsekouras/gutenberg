@@ -123,6 +123,9 @@ export function isBlockValid( state, clientId ) {
  * @return {Object?} Block attributes.
  */
 export function getBlockAttributes( state, clientId ) {
+	if ( ! state.blocks ) {
+		return null;
+	}
 	const block = state.blocks.byClientId[ clientId ];
 	if ( ! block ) {
 		return null;
@@ -137,32 +140,76 @@ export function getBlockAttributes( state, clientId ) {
  * is not the block's registration settings, which must be retrieved from the
  * blocks module registration store.
  *
- * @param {Object} state    Editor state.
- * @param {string} clientId Block client ID.
+ * This selector handles two cases for different types of entities within the
+ * block editor:
+ * 1. A parent entity. For the parent entity, it wants to traverse through the
+ *    block tree, but stop when it reaches a different entity, like a template
+ *    part. In this scenario, withImmediateChildren is false deep into the block
+ *    tree. In other words, if an InnerBlock controller is reached, the selector
+ *    is only memoized based on the controller's attributes, NOT the block cache
+ *    state. The block cache state changes when the controlled inner blocks
+ *    change, which is not applicable to a parent entity, so we do not want to
+ *    trigger any updates.
+ * 2. A child controller. For the child controller, it needs to be aware of its
+ *    direct children. As a result, it is memoized on the block cache state,
+ *    since it does want to be aware of changes to its inner blocks. If it were
+ *    only memoized on attributes, it would not update as its inner blocks
+ *    change.
  *
+ * In most cases, both of the above are true. For example, a template part acts
+ * as a "child" controller since it updates as its inner blocks change. But as
+ * it traverses into the block tree, it acts as a "parent", since
+ * withImmediateChildren will not be passed down as this selector recurses. So,
+ * as a controller, it can listen directly as its inner blocks change without
+ * seeing any changes inside of any controllers which may happen to exist in its
+ * inner blocks.
+ *
+ * @param {Object}  state    Editor state.
+ * @param {string}  clientId Block client ID.
+ * @param {boolean} [withImmediateChildren] Use this parameter to ignore whether
+ *                                          inner blocks are controlled. Helpful
+ *                                          for the inner block component, which
+ *                                          needs to see its children, even though
+ *                                          they are controlled.
  * @return {Object} Parsed block object.
  */
 export const getBlock = createSelector(
-	( state, clientId ) => {
+	( state, clientId, withImmediateChildren = false ) => {
 		const block = state.blocks.byClientId[ clientId ];
 		if ( ! block ) {
 			return null;
 		}
 
+		const innerBlocks =
+			! withImmediateChildren &&
+			areInnerBlocksControlled( state, clientId )
+				? EMPTY_ARRAY
+				: getBlocks( state, clientId );
 		return {
 			...block,
+			innerBlocks,
 			attributes: getBlockAttributes( state, clientId ),
-			innerBlocks: getBlocks( state, clientId ),
 		};
 	},
-	( state, clientId ) => [
+	( state, clientId, withImmediateChildren = false ) => {
+		// From the perspective of most entities, we do not want to refresh the
+		// selector when a different entity's inner blocks change. So in the case
+		// of controlled inner blocks, only use block attributes. If withImmediateChildren
+		// is set, then we do care about changes to child blocks.
+		if (
+			! withImmediateChildren &&
+			areInnerBlocksControlled( state, clientId )
+		) {
+			return [ getBlockAttributes( state, clientId ) ];
+		}
+
 		// Normally, we'd have both `getBlockAttributes` dependencies and
 		// `getBlocks` (children) dependancies here but for performance reasons
 		// we use a denormalized cache key computed in the reducer that takes both
 		// the attributes and inner blocks into account. The value of the cache key
 		// is being changed whenever one of these dependencies is out of date.
-		state.blocks.cache[ clientId ],
-	]
+		return [ state.blocks.cache[ clientId ] ];
+	}
 );
 
 export const __unstableGetBlockWithoutInnerBlocks = createSelector(

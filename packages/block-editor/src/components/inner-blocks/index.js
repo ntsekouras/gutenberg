@@ -245,7 +245,7 @@ const ComposedInnerBlocks = compose( [
 			isLastBlockChangePersistent,
 		} = select( 'core/block-editor' );
 		const { clientId, isSmallScreen } = ownProps;
-		const block = getBlock( clientId );
+		const block = getBlock( clientId, true );
 		const rootClientId = getBlockRootClientId( clientId );
 
 		return {

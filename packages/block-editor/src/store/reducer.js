@@ -34,8 +34,6 @@ import { insertAt, moveTo } from './array';
  * context, the value of which is an array of block client IDs existing within
  * that nesting context.
  *
- * @todo noahtallen
- *
  * @param {Array}   blocks       Blocks to map.
  * @param {?string} rootClientId Assumed root client ID.
  *
