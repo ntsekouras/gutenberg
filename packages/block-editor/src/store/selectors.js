@@ -1692,3 +1692,22 @@ export function isBlockHighlighted( state, clientId ) {
 export function areInnerBlocksControlled( state, clientId ) {
 	return !! state.blocks.controlledInnerBlocks[ clientId ];
 }
+
+/**
+ * Checks if InnerBlocks controllers exist in the state.
+ *
+ * @param {Object} state Global application state.
+ *
+ * @return {boolean} True if there are any InnerBlocks controllers.
+ */
+export const areAnyInnerBlocksControlled = createSelector(
+	( state ) => {
+		for ( const clientId in state.blocks.controlledInnerBlocks ) {
+			if ( areInnerBlocksControlled( state, clientId ) ) {
+				return true;
+			}
+		}
+		return false;
+	},
+	( state ) => [ state.blocks.controlledInnerBlocks ]
+);

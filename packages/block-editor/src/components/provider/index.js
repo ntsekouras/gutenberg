@@ -6,6 +6,7 @@ import { last, noop } from 'lodash';
 /**
  * WordPress dependencies
  */
+import isShallowEqual from '@wordpress/is-shallow-equal';
 import { Component } from '@wordpress/element';
 import { withDispatch } from '@wordpress/data';
 import { compose } from '@wordpress/compose';
@@ -97,12 +98,14 @@ class BlockEditorProvider extends Component {
 			getBlocks,
 			getSelectionStart,
 			getSelectionEnd,
+			areAnyInnerBlocksControlled,
 			isLastBlockChangePersistent,
 			__unstableIsLastBlockChangeIgnored,
 		} = registry.select( 'core/block-editor' );
 
 		let blocks = getBlocks();
 		let isPersistent = isLastBlockChangePersistent();
+		let previousAreBlocksDifferent = false;
 
 		this.unsubscribe = registry.subscribe( () => {
 			const { onChange = noop, onInput = noop } = this.props;
@@ -110,8 +113,14 @@ class BlockEditorProvider extends Component {
 			const newBlocks = getBlocks();
 			const newIsPersistent = isLastBlockChangePersistent();
 
+			// Avoid the more expensive equality check if there are no controlled
+			// inner block areas.
+			const areBlocksDifferent = areAnyInnerBlocksControlled()
+				? ! isShallowEqual( newBlocks, blocks )
+				: newBlocks !== blocks;
+
 			if (
-				newBlocks !== blocks &&
+				areBlocksDifferent &&
 				( this.isSyncingIncomingValue ||
 					__unstableIsLastBlockChangeIgnored() )
 			) {
@@ -121,14 +130,19 @@ class BlockEditorProvider extends Component {
 				return;
 			}
 
-			if (
-				newBlocks !== blocks ||
-				// This happens when a previous input is explicitely marked as persistent.
-				( newIsPersistent && ! isPersistent )
-			) {
+			// Since we often dispatch an action to mark the previous action as
+			// persistent, we need to make sure that the blocks changed on the
+			// previous action before committing the change.
+			const didPersistenceChange =
+				previousAreBlocksDifferent &&
+				! areBlocksDifferent &&
+				newIsPersistent &&
+				! isPersistent;
+
+			if ( areBlocksDifferent || didPersistenceChange ) {
 				// When knowing the blocks value is changing, assign instance
 				// value to skip reset in subsequent `componentDidUpdate`.
-				if ( newBlocks !== blocks ) {
+				if ( areBlocksDifferent ) {
 					this.isSyncingOutcomingValue.push( newBlocks );
 				}
 
@@ -144,6 +158,7 @@ class BlockEditorProvider extends Component {
 					onInput( blocks, { selectionStart, selectionEnd } );
 				}
 			}
+			previousAreBlocksDifferent = areBlocksDifferent;
 		} );
 	}
 

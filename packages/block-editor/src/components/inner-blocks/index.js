@@ -73,6 +73,18 @@ class InnerBlocks extends Component {
 			templateInProcess: !! this.props.template,
 		};
 		this.updateNestedSettings();
+		this.hasPendingBlockChanges = false;
+		// Assume that inner blocks have loaded if this is an unconrolled inner
+		// blocks component. This logic works because initially, the inner blocks
+		// from the block editor state will be empty if we are controlling our
+		// own inner blocks. Once we dispatch our controlled blocks to the block
+		// editor state, this component will update to receive new inner blocks.
+		// We use the componentDidUpdate method to set this to true once we know
+		// that our controlled inner blocks are in the block-editor state.
+		this.didInnerBlocksLoad = this.props.__experimentalBlocks
+			? this.props.__experimentalBlocks.length ===
+			  this.props.block.innerBlocks.length
+			: true;
 	}
 
 	componentDidMount() {
@@ -108,6 +120,7 @@ class InnerBlocks extends Component {
 			isLastBlockChangePersistent,
 			onInput,
 			onChange,
+			__experimentalBlocks,
 		} = this.props;
 		const { innerBlocks } = block;
 
@@ -123,12 +136,46 @@ class InnerBlocks extends Component {
 			}
 		}
 
-		// Sync with controlled blocks value from parent, if possible.
-		if ( prevProps.block.innerBlocks !== innerBlocks ) {
-			const resetFunc = isLastBlockChangePersistent ? onChange : onInput;
-			if ( resetFunc ) {
-				resetFunc( innerBlocks );
+		if ( onInput || onChange ) {
+			const areBlocksDifferent = ! isShallowEqual(
+				prevProps.block.innerBlocks,
+				innerBlocks
+			);
+
+			// Since we often dispatch an action to mark the previous action as
+			// persistent, we need to make sure that the blocks changed on a
+			// previous action before committing the change. Otherwise, we may
+			// end up calling onChange when a different entity has updated.
+			const didPersistenceChange =
+				this.hasPendingBlockChanges &&
+				isLastBlockChangePersistent &&
+				! prevProps.isLastBlockChangePersistent;
+
+			// Sync with controlled blocks value from parent, if possible.
+			if ( areBlocksDifferent || didPersistenceChange ) {
+				const resetFunc = isLastBlockChangePersistent
+					? onChange
+					: onInput;
+				if ( resetFunc ) {
+					resetFunc( innerBlocks );
+				}
+				// Clear the pending state if we persisted it. Otherwise, set
+				// the state to whether or not we've made changes. Also make sure
+				// that we do not consider the block change that happens when
+				// the inner blocks update to match the experimental blocks.
+				this.hasPendingBlockChanges =
+					isLastBlockChangePersistent || ! this.didInnerBlocksLoad
+						? false
+						: areBlocksDifferent;
 			}
+		}
+
+		// We must update this value after the update logic occurs. Otherwise,
+		// we will set a pending changes immediately when the block receives the
+		// correct inner blocks.
+		if ( ! this.didInnerBlocksLoad ) {
+			this.didInnerBlocksLoad =
+				__experimentalBlocks.length === innerBlocks.length;
 		}
 	}
 
