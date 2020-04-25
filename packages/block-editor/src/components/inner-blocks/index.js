@@ -92,7 +92,7 @@ class InnerBlocks extends Component {
 			block,
 			templateLock,
 			__experimentalBlocks,
-			initControlledBlocks,
+			updateControlledBlocks,
 		} = this.props;
 		const { innerBlocks } = block;
 		// Only synchronize innerBlocks with template if innerBlocks are empty or a locking all exists directly on the block.
@@ -108,7 +108,7 @@ class InnerBlocks extends Component {
 
 		// Set controlled blocks value from parent, if any.
 		if ( __experimentalBlocks ) {
-			initControlledBlocks( __experimentalBlocks );
+			updateControlledBlocks( __experimentalBlocks );
 		}
 	}
 
@@ -121,6 +121,7 @@ class InnerBlocks extends Component {
 			onInput,
 			onChange,
 			__experimentalBlocks,
+			updateControlledBlocks,
 		} = this.props;
 		const { innerBlocks } = block;
 
@@ -136,12 +137,24 @@ class InnerBlocks extends Component {
 			}
 		}
 
-		if ( onInput || onChange ) {
-			const areBlocksDifferent = ! isShallowEqual(
-				prevProps.block.innerBlocks,
-				innerBlocks
-			);
+		const areBlocksDifferent = ! isShallowEqual(
+			prevProps.block.innerBlocks,
+			innerBlocks
+		);
 
+		// Update the block-editor store with the new controll value if the control
+		// value is changing but the local blocks are staying the same. This should
+		// only really return true if the user "undo"s something in the controller
+		// entity state.
+		if (
+			__experimentalBlocks &&
+			! areBlocksDifferent &&
+			! isEqual( __experimentalBlocks, innerBlocks )
+		) {
+			updateControlledBlocks( __experimentalBlocks );
+		}
+
+		if ( onInput || onChange ) {
 			// Since we often dispatch an action to mark the previous action as
 			// persistent, we need to make sure that the blocks changed on a
 			// previous action before committing the change. Otherwise, we may
@@ -332,14 +345,14 @@ const ComposedInnerBlocks = compose( [
 			);
 		};
 
-		const initControlledBlocks = ( blocks ) => {
+		const updateControlledBlocks = ( blocks ) => {
 			setHasControlledInnerBlocks( clientId, true );
 			__unstableMarkNextChangeAsNotPersistent();
 			wrappedReplaceInnerBlocks( blocks, false );
 		};
 
 		return {
-			initControlledBlocks,
+			updateControlledBlocks,
 			replaceInnerBlocks: wrappedReplaceInnerBlocks,
 			updateNestedSettings( settings ) {
 				dispatch( updateBlockListSettings( clientId, settings ) );
