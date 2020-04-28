@@ -262,6 +262,11 @@ const withBlockCache = ( reducer ) => ( state = {}, action ) => {
 			let current = clientId;
 			do {
 				result.push( current );
+				if ( !! state.controlledInnerBlocks[ current ] ) {
+					// Stop at the first inner block controller. If we go
+					// further, we risk triggering an update for a grandparent.
+					break;
+				}
 				current = state.parents[ current ];
 			} while ( current );
 			return result;
