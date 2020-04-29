@@ -9,11 +9,11 @@ import { useEffect } from '@wordpress/element';
  * Internal dependencies
  */
 import withRegistryProvider from './with-registry-provider';
-import { useBlockEntitySync } from './use-block-entity-sync';
+import { useBlockSync } from './use-block-sync';
 
 /** @typedef {import('@wordpress/data').WPDataRegistry} WPDataRegistry */
 
-export default compose( [ withRegistryProvider ] )( ( props ) => {
+function BlockEditorProvider( props ) {
 	const { children, settings } = props;
 
 	const { updateSettings } = useDispatch( 'core/block-editor' );
@@ -22,7 +22,9 @@ export default compose( [ withRegistryProvider ] )( ( props ) => {
 	}, [ settings ] );
 
 	// Syncs the entity provider with changes in the block-editor store.
-	useBlockEntitySync( props );
+	useBlockSync( props );
 
 	return children;
-} );
+}
+
+export default compose( [ withRegistryProvider ] )( BlockEditorProvider );

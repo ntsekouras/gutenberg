@@ -9,16 +9,18 @@ import { last, noop } from 'lodash';
 import isShallowEqual from '@wordpress/is-shallow-equal';
 import { useEffect, useRef } from '@wordpress/element';
 import { createHigherOrderComponent } from '@wordpress/compose';
+import { useRegistry } from '@wordpress/data';
 
-export function useBlockEntitySync( {
-	registry,
-	value: controlledBlocks,
+export function useBlockSync( {
 	clientId = null,
+	value: controlledBlocks,
 	onChange = noop,
 	onInput = noop,
-	selectionStart: incomingSelectionStart,
-	selectionEnd: incomingSelectionEnd,
+	selectionStart: controlledSelectionStart,
+	selectionEnd: controlledSelectionEnd,
 } ) {
+	const registry = useRegistry();
+
 	const {
 		resetBlocks,
 		resetSelection,
@@ -145,8 +147,11 @@ export function useBlockEntitySync( {
 			pendingChanges.current.incoming = controlledBlocks;
 			setControlledBlocks();
 
-			if ( incomingSelectionStart && incomingSelectionEnd ) {
-				resetSelection( incomingSelectionStart, incomingSelectionEnd );
+			if ( controlledSelectionStart && controlledSelectionEnd ) {
+				resetSelection(
+					controlledSelectionStart,
+					controlledSelectionEnd
+				);
 			}
 		}
 	}, [ controlledBlocks ] );
@@ -155,7 +160,7 @@ export function useBlockEntitySync( {
 export const withBlockEntitySync = createHigherOrderComponent(
 	( WrappedComponent ) => ( props ) => {
 		if ( props.value ) {
-			useBlockEntitySync( props );
+			useBlockSync( props );
 		}
 		return <WrappedComponent { ...props } />;
 	},

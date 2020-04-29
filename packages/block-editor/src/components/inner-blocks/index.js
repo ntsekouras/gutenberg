@@ -9,7 +9,7 @@ import classnames from 'classnames';
  */
 import { withViewportMatch } from '@wordpress/viewport';
 import { Component, forwardRef, useRef } from '@wordpress/element';
-import { withSelect, withDispatch, withRegistry } from '@wordpress/data';
+import { withSelect, withDispatch } from '@wordpress/data';
 import {
 	getBlockType,
 	synchronizeBlocksWithTemplate,
@@ -30,7 +30,7 @@ import DefaultBlockAppender from './default-block-appender';
 import BlockList from '../block-list';
 import { BlockContextProvider } from '../block-context';
 import { withBlockEditContext } from '../block-edit/context';
-import { withBlockEntitySync } from '../provider/use-block-entity-sync';
+import { withBlockEntitySync } from '../provider/use-block-sync';
 
 /**
  * Block context cache, implemented as a WeakMap mapping block types to a
@@ -213,8 +213,7 @@ class InnerBlocks extends Component {
 const ComposedInnerBlocks = compose( [
 	withViewportMatch( { isSmallScreen: '< medium' } ),
 	withBlockEditContext( ( context ) => pick( context, [ 'clientId' ] ) ),
-	withRegistry,
-	withBlockEntitySync, // Required to be after withRegistry
+	withBlockEntitySync,
 	withSelect( ( select, ownProps ) => {
 		const {
 			isBlockSelected,
