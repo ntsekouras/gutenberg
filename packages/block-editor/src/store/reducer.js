@@ -1136,7 +1136,8 @@ function selection( state = {}, action ) {
 			return { clientId: action.clientId };
 		case 'REPLACE_INNER_BLOCKS': // REPLACE_INNER_BLOCKS and INSERT_BLOCKS should follow the same logic.
 		case 'INSERT_BLOCKS': {
-			if ( ! action.updateSelection ) {
+			// REPLACE_INNER_BLOCKS can be called with an empty array.
+			if ( ! action.updateSelection || ! action.blocks.length ) {
 				return state;
 			}
 
