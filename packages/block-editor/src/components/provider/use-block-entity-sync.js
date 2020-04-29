@@ -154,7 +154,9 @@ export function useBlockEntitySync( {
 
 export const withBlockEntitySync = createHigherOrderComponent(
 	( WrappedComponent ) => ( props ) => {
-		useBlockEntitySync( props );
+		if ( props.value ) {
+			useBlockEntitySync( props );
+		}
 		return <WrappedComponent { ...props } />;
 	},
 	'withBlockEntitySync'

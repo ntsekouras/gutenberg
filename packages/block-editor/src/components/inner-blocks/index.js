@@ -9,7 +9,7 @@ import classnames from 'classnames';
  */
 import { withViewportMatch } from '@wordpress/viewport';
 import { Component, forwardRef, useRef } from '@wordpress/element';
-import { withSelect, withDispatch } from '@wordpress/data';
+import { withSelect, withDispatch, withRegistry } from '@wordpress/data';
 import {
 	getBlockType,
 	synchronizeBlocksWithTemplate,
@@ -30,6 +30,7 @@ import DefaultBlockAppender from './default-block-appender';
 import BlockList from '../block-list';
 import { BlockContextProvider } from '../block-context';
 import { withBlockEditContext } from '../block-edit/context';
+import { withBlockEntitySync } from '../provider/use-block-entity-sync';
 
 /**
  * Block context cache, implemented as a WeakMap mapping block types to a
@@ -73,27 +74,10 @@ class InnerBlocks extends Component {
 			templateInProcess: !! this.props.template,
 		};
 		this.updateNestedSettings();
-		this.hasPendingBlockChanges = false;
-		// Assume that inner blocks have loaded if this is an unconrolled inner
-		// blocks component. This logic works because initially, the inner blocks
-		// from the block editor state will be empty if we are controlling our
-		// own inner blocks. Once we dispatch our controlled blocks to the block
-		// editor state, this component will update to receive new inner blocks.
-		// We use the componentDidUpdate method to set this to true once we know
-		// that our controlled inner blocks are in the block-editor state.
-		this.didInnerBlocksLoad = this.props.__experimentalBlocks
-			? this.props.__experimentalBlocks.length ===
-			  this.props.block.innerBlocks.length
-			: true;
 	}
 
 	componentDidMount() {
-		const {
-			block,
-			templateLock,
-			__experimentalBlocks,
-			updateControlledBlocks,
-		} = this.props;
+		const { block, templateLock, value, controlInnerBlocks } = this.props;
 		const { innerBlocks } = block;
 		// Only synchronize innerBlocks with template if innerBlocks are empty or a locking all exists directly on the block.
 		if ( innerBlocks.length === 0 || templateLock === 'all' ) {
@@ -105,24 +89,14 @@ class InnerBlocks extends Component {
 				templateInProcess: false,
 			} );
 		}
-
 		// Set controlled blocks value from parent, if any.
-		if ( __experimentalBlocks ) {
-			updateControlledBlocks( __experimentalBlocks );
+		if ( value ) {
+			controlInnerBlocks();
 		}
 	}
 
 	componentDidUpdate( prevProps ) {
-		const {
-			block,
-			templateLock,
-			template,
-			isLastBlockChangePersistent,
-			onInput,
-			onChange,
-			__experimentalBlocks,
-			updateControlledBlocks,
-		} = this.props;
+		const { block, templateLock, template } = this.props;
 		const { innerBlocks } = block;
 
 		this.updateNestedSettings();
@@ -135,60 +109,6 @@ class InnerBlocks extends Component {
 			if ( hasTemplateChanged ) {
 				this.synchronizeBlocksWithTemplate();
 			}
-		}
-
-		const areBlocksDifferent = ! isShallowEqual(
-			prevProps.block.innerBlocks,
-			innerBlocks
-		);
-
-		// Update the block-editor store with the new controll value if the control
-		// value is changing but the local blocks are staying the same. This should
-		// only really return true if the user "undo"s something in the controller
-		// entity state.
-		if (
-			__experimentalBlocks &&
-			! areBlocksDifferent &&
-			! isEqual( __experimentalBlocks, innerBlocks )
-		) {
-			updateControlledBlocks( __experimentalBlocks );
-		}
-
-		if ( onInput || onChange ) {
-			// Since we often dispatch an action to mark the previous action as
-			// persistent, we need to make sure that the blocks changed on a
-			// previous action before committing the change. Otherwise, we may
-			// end up calling onChange when a different entity has updated.
-			const didPersistenceChange =
-				this.hasPendingBlockChanges &&
-				isLastBlockChangePersistent &&
-				! prevProps.isLastBlockChangePersistent;
-
-			// Sync with controlled blocks value from parent, if possible.
-			if ( areBlocksDifferent || didPersistenceChange ) {
-				const resetFunc = isLastBlockChangePersistent
-					? onChange
-					: onInput;
-				if ( resetFunc ) {
-					resetFunc( innerBlocks );
-				}
-				// Clear the pending state if we persisted it. Otherwise, set
-				// the state to whether or not we've made changes. Also make sure
-				// that we do not consider the block change that happens when
-				// the inner blocks update to match the experimental blocks.
-				this.hasPendingBlockChanges =
-					isLastBlockChangePersistent || ! this.didInnerBlocksLoad
-						? false
-						: areBlocksDifferent;
-			}
-		}
-
-		// We must update this value after the update logic occurs. Otherwise,
-		// we will set a pending changes immediately when the block receives the
-		// correct inner blocks.
-		if ( ! this.didInnerBlocksLoad ) {
-			this.didInnerBlocksLoad =
-				__experimentalBlocks.length === innerBlocks.length;
 		}
 	}
 
@@ -293,6 +213,8 @@ class InnerBlocks extends Component {
 const ComposedInnerBlocks = compose( [
 	withViewportMatch( { isSmallScreen: '< medium' } ),
 	withBlockEditContext( ( context ) => pick( context, [ 'clientId' ] ) ),
+	withRegistry,
+	withBlockEntitySync, // Required to be after withRegistry
 	withSelect( ( select, ownProps ) => {
 		const {
 			isBlockSelected,
@@ -302,7 +224,6 @@ const ComposedInnerBlocks = compose( [
 			getBlockRootClientId,
 			getTemplateLock,
 			isNavigationMode,
-			isLastBlockChangePersistent,
 		} = select( 'core/block-editor' );
 		const { clientId, isSmallScreen } = ownProps;
 		const block = getBlock( clientId, true );
@@ -317,13 +238,11 @@ const ComposedInnerBlocks = compose( [
 				! hasSelectedInnerBlock( clientId, true ),
 			parentLock: getTemplateLock( rootClientId ),
 			enableClickThrough: isNavigationMode() || isSmallScreen,
-			isLastBlockChangePersistent: isLastBlockChangePersistent(),
 		};
 	} ),
 	withDispatch( ( dispatch, ownProps ) => {
 		const {
 			replaceInnerBlocks,
-			__unstableMarkNextChangeAsNotPersistent,
 			updateBlockListSettings,
 			setHasControlledInnerBlocks,
 		} = dispatch( 'core/block-editor' );
@@ -333,27 +252,20 @@ const ComposedInnerBlocks = compose( [
 			templateInsertUpdatesSelection = true,
 		} = ownProps;
 
-		const wrappedReplaceInnerBlocks = ( blocks, forceUpdateSelection ) => {
-			replaceInnerBlocks(
-				clientId,
-				blocks,
-				forceUpdateSelection !== undefined
-					? forceUpdateSelection
-					: block.innerBlocks.length === 0 &&
-							templateInsertUpdatesSelection &&
-							blocks.length !== 0
-			);
-		};
-
-		const updateControlledBlocks = ( blocks ) => {
-			setHasControlledInnerBlocks( clientId, true );
-			__unstableMarkNextChangeAsNotPersistent();
-			wrappedReplaceInnerBlocks( blocks, false );
-		};
-
 		return {
-			updateControlledBlocks,
-			replaceInnerBlocks: wrappedReplaceInnerBlocks,
+			controlInnerBlocks: () =>
+				setHasControlledInnerBlocks( clientId, true ),
+			replaceInnerBlocks: ( blocks, forceUpdateSelection ) => {
+				replaceInnerBlocks(
+					clientId,
+					blocks,
+					forceUpdateSelection !== undefined
+						? forceUpdateSelection
+						: block.innerBlocks.length === 0 &&
+								templateInsertUpdatesSelection &&
+								blocks.length !== 0
+				);
+			},
 			updateNestedSettings( settings ) {
 				dispatch( updateBlockListSettings( clientId, settings ) );
 			},
