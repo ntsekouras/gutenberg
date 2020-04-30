@@ -6,7 +6,6 @@ import { last, noop } from 'lodash';
 /**
  * WordPress dependencies
  */
-import isShallowEqual from '@wordpress/is-shallow-equal';
 import { useEffect, useRef } from '@wordpress/element';
 import { useRegistry } from '@wordpress/data';
 
@@ -35,9 +34,12 @@ export default function useBlockSync( {
 		if ( ! controlledBlocks ) {
 			return;
 		}
-		setHasControlledInnerBlocks( clientId, true );
-		__unstableMarkNextChangeAsNotPersistent();
 		if ( clientId ) {
+			setHasControlledInnerBlocks( clientId, true );
+			// We don't need to persist this change because we only replace
+			// controlled inner blocks when the change was caused by an entity,
+			// and so it would already be persisted.
+			__unstableMarkNextChangeAsNotPersistent();
 			replaceInnerBlocks( clientId, controlledBlocks );
 		} else {
 			resetBlocks( controlledBlocks );
@@ -52,7 +54,6 @@ export default function useBlockSync( {
 		const {
 			getSelectionStart,
 			getSelectionEnd,
-			areAnyInnerBlocksControlled,
 			isLastBlockChangePersistent,
 			__unstableIsLastBlockChangeIgnored,
 		} = registry.select( 'core/block-editor' );
@@ -65,11 +66,7 @@ export default function useBlockSync( {
 			const newBlocks = getBlocks( clientId );
 			const newIsPersistent = isLastBlockChangePersistent();
 
-			// Avoid the more expensive equality check if there are no controlled
-			// inner block areas.
-			const areBlocksDifferent = areAnyInnerBlocksControlled()
-				? ! isShallowEqual( newBlocks, blocks )
-				: newBlocks !== blocks;
+			const areBlocksDifferent = newBlocks !== blocks;
 
 			if (
 				areBlocksDifferent &&
@@ -92,23 +89,21 @@ export default function useBlockSync( {
 				! isPersistent;
 
 			if ( areBlocksDifferent || didPersistenceChange ) {
-				// When knowing the blocks value is changing, assign instance
-				// value to skip reset in subsequent `componentDidUpdate`.
-				if ( areBlocksDifferent ) {
-					pendingChanges.current.outgoing.push( newBlocks );
-				}
-
 				blocks = newBlocks;
 				isPersistent = newIsPersistent;
+				// We know that onChange/onInput will update controlledBlocks.
+				// We need to be aware that it was caused by an outgoing change
+				// so that we do not treat it as an incoming change later on,
+				// which would cause a block reset.
+				pendingChanges.current.outgoing.push( blocks );
 
-				const selectionStart = getSelectionStart();
-				const selectionEnd = getSelectionEnd();
-
-				if ( isPersistent ) {
-					onChange( blocks, { selectionStart, selectionEnd } );
-				} else {
-					onInput( blocks, { selectionStart, selectionEnd } );
-				}
+				// Inform the controlling entity that changes have been made to
+				// the block-editor store they should be aware about.
+				const updateParent = isPersistent ? onChange : onInput;
+				updateParent( blocks, {
+					selectionStart: getSelectionStart(),
+					selectionEnd: getSelectionEnd(),
+				} );
 			}
 			previousAreBlocksDifferent = areBlocksDifferent;
 		} );
