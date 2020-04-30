@@ -262,13 +262,8 @@ const withBlockCache = ( reducer ) => ( state = {}, action ) => {
 			let current = clientId;
 			do {
 				result.push( current );
-				if ( !! state.controlledInnerBlocks[ current ] ) {
-					// Stop at the first inner block controller. If we go
-					// further, we risk triggering an update for a grandparent.
-					break;
-				}
 				current = state.parents[ current ];
-			} while ( current );
+			} while ( current && ! state.controlledInnerBlocks[ current ] );
 			return result;
 		}, [] );
 	};
@@ -283,7 +278,10 @@ const withBlockCache = ( reducer ) => ( state = {}, action ) => {
 		case 'RECEIVE_BLOCKS':
 		case 'INSERT_BLOCKS': {
 			const updatedBlockUids = keys( flattenBlocks( action.blocks ) );
-			if ( action.rootClientId ) {
+			if (
+				action.rootClientId &&
+				! state.controlledInnerBlocks[ action.rootClientId ]
+			) {
 				updatedBlockUids.push( action.rootClientId );
 			}
 			newState.cache = {

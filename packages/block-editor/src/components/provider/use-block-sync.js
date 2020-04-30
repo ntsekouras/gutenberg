@@ -25,11 +25,10 @@ export function useBlockSync( {
 		resetBlocks,
 		resetSelection,
 		replaceInnerBlocks,
+		setHasControlledInnerBlocks,
 		__unstableMarkNextChangeAsNotPersistent,
 	} = registry.dispatch( 'core/block-editor' );
-	const { getBlocks: getRegistryBlocks, getBlock } = registry.select(
-		'core/block-editor'
-	);
+	const { getBlocks } = registry.select( 'core/block-editor' );
 
 	const pendingChanges = useRef( { incoming: null, outgoing: [] } );
 
@@ -37,20 +36,13 @@ export function useBlockSync( {
 		if ( ! controlledBlocks ) {
 			return;
 		}
+		setHasControlledInnerBlocks( clientId, true );
 		__unstableMarkNextChangeAsNotPersistent();
 		if ( clientId ) {
 			replaceInnerBlocks( clientId, controlledBlocks );
 		} else {
 			resetBlocks( controlledBlocks );
 		}
-	};
-
-	const getBlocks = () => {
-		if ( clientId ) {
-			const block = getBlock( clientId, true );
-			return block ? block.innerBlocks : [];
-		}
-		return getRegistryBlocks();
 	};
 
 	// Add a subscription to the block-editor registry to detect when changes
@@ -66,12 +58,12 @@ export function useBlockSync( {
 			__unstableIsLastBlockChangeIgnored,
 		} = registry.select( 'core/block-editor' );
 
-		let blocks = getBlocks();
+		let blocks = getBlocks( clientId );
 		let isPersistent = isLastBlockChangePersistent();
 		let previousAreBlocksDifferent = false;
 
 		const unsubscribe = registry.subscribe( () => {
-			const newBlocks = getBlocks();
+			const newBlocks = getBlocks( clientId );
 			const newIsPersistent = isLastBlockChangePersistent();
 
 			// Avoid the more expensive equality check if there are no controlled
@@ -154,7 +146,7 @@ export function useBlockSync( {
 				);
 			}
 		}
-	}, [ controlledBlocks ] );
+	}, [ controlledBlocks, clientId ] );
 }
 
 export const withBlockEntitySync = createHigherOrderComponent(

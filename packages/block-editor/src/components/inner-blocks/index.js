@@ -75,19 +75,22 @@ function useNestedSettingsUpdate(
 ) {
 	const { updateBlockListSettings } = useDispatch( 'core/block-editor' );
 
-	const { blockListSettings, parentLock } = useSelect( ( select ) => {
-		const rootClientId = select( 'core/block-editor' ).getBlockRootClientId(
-			clientId
-		);
-		return {
-			blockListSettings: select(
+	const { blockListSettings, parentLock } = useSelect(
+		( select ) => {
+			const rootClientId = select(
 				'core/block-editor'
-			).getBlockListSettings( clientId ),
-			parentLock: select( 'core/block-editor' ).getTemplateLock(
-				rootClientId
-			),
-		};
-	} );
+			).getBlockRootClientId( clientId );
+			return {
+				blockListSettings: select(
+					'core/block-editor'
+				).getBlockListSettings( clientId ),
+				parentLock: select( 'core/block-editor' ).getTemplateLock(
+					rootClientId
+				),
+			};
+		},
+		[ clientId ]
+	);
 
 	useEffect( () => {
 		const newSettings = {
@@ -114,17 +117,21 @@ function useNestedSettingsUpdate(
 }
 
 function useInnerBlockTemplateSynchronization(
-	block,
+	clientId,
 	template,
 	templateLock,
 	templateInsertUpdatesSelection
 ) {
 	const { replaceInnerBlocks } = useDispatch( 'core/block-editor' );
 
+	const innerBlocks = useSelect(
+		( select ) => select( 'core/block-editor' ).getBlocks( clientId ),
+		[ clientId ]
+	);
+
 	// Maintain a reference to the previous value so we can do a deep equality check.
 	const existingTemplate = useRef( null );
 	useEffect( () => {
-		const { innerBlocks, clientId } = block;
 		// Only synchronize innerBlocks with template if innerBlocks are empty or
 		// a locking all exists directly on the block.
 		if ( innerBlocks.length === 0 || templateLock === 'all' ) {
@@ -142,14 +149,14 @@ function useInnerBlockTemplateSynchronization(
 					replaceInnerBlocks(
 						clientId,
 						nextBlocks,
-						block.innerBlocks.length === 0 &&
+						innerBlocks.length === 0 &&
 							templateInsertUpdatesSelection &&
 							nextBlocks.length !== 0
 					);
 				}
 			}
 		}
-	}, [ block, templateLock ] );
+	}, [ innerBlocks, templateLock, clientId ] );
 }
 
 function UncontrolledInnerBlocks( props ) {
@@ -173,7 +180,7 @@ function UncontrolledInnerBlocks( props ) {
 			hasSelectedInnerBlock,
 			isNavigationMode,
 		} = select( 'core/block-editor' );
-		const theBlock = getBlock( clientId, true );
+		const theBlock = getBlock( clientId );
 		return {
 			block: theBlock,
 			hasOverlay:
@@ -193,7 +200,7 @@ function UncontrolledInnerBlocks( props ) {
 	);
 
 	useInnerBlockTemplateSynchronization(
-		block,
+		clientId,
 		template,
 		templateLock,
 		templateInsertUpdatesSelection

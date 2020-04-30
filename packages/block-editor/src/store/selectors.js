@@ -174,42 +174,29 @@ export function getBlockAttributes( state, clientId ) {
  * @return {Object} Parsed block object.
  */
 export const getBlock = createSelector(
-	( state, clientId, withImmediateChildren = false ) => {
+	( state, clientId ) => {
 		const block = state.blocks.byClientId[ clientId ];
 		if ( ! block ) {
 			return null;
 		}
 
-		const innerBlocks =
-			! withImmediateChildren &&
-			areInnerBlocksControlled( state, clientId )
-				? EMPTY_ARRAY
-				: getBlocks( state, clientId );
+		const innerBlocks = areInnerBlocksControlled( state, clientId )
+			? EMPTY_ARRAY
+			: getBlocks( state, clientId );
 		return {
 			...block,
 			innerBlocks,
 			attributes: getBlockAttributes( state, clientId ),
 		};
 	},
-	( state, clientId, withImmediateChildren = false ) => {
-		// From the perspective of most entities, we do not want to refresh the
-		// selector when a different entity's inner blocks change. So in the case
-		// of controlled inner blocks, only use block attributes. If withImmediateChildren
-		// is set, then we do care about changes to child blocks.
-		if (
-			! withImmediateChildren &&
-			areInnerBlocksControlled( state, clientId )
-		) {
-			return [ getBlockAttributes( state, clientId ) ];
-		}
-
+	( state, clientId ) => [
 		// Normally, we'd have both `getBlockAttributes` dependencies and
 		// `getBlocks` (children) dependancies here but for performance reasons
 		// we use a denormalized cache key computed in the reducer that takes both
 		// the attributes and inner blocks into account. The value of the cache key
 		// is being changed whenever one of these dependencies is out of date.
-		return [ state.blocks.cache[ clientId ] ];
-	}
+		state.blocks.cache[ clientId ],
+	]
 );
 
 export const __unstableGetBlockWithoutInnerBlocks = createSelector(
@@ -248,10 +235,11 @@ export const getBlocks = createSelector(
 			getBlock( state, clientId )
 		);
 	},
-	( state ) => [
-		state.blocks.byClientId,
-		state.blocks.order,
-		state.blocks.attributes,
+	( state, rootClientId ) => [
+		...map(
+			state.blocks.order[ rootClientId || '' ],
+			( id ) => state.blocks.cache[ id ]
+		),
 	]
 );
 
