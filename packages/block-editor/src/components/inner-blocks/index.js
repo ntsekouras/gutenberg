@@ -29,7 +29,7 @@ import DefaultBlockAppender from './default-block-appender';
 import BlockList from '../block-list';
 import { BlockContextProvider } from '../block-context';
 import { useBlockEditContext } from '../block-edit/context';
-import { useBlockSync } from '../provider/use-block-sync';
+import useBlockSync from '../provider/use-block-sync';
 
 /**
  * Block context cache, implemented as a WeakMap mapping block types to a

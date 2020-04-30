@@ -8,10 +8,9 @@ import { last, noop } from 'lodash';
  */
 import isShallowEqual from '@wordpress/is-shallow-equal';
 import { useEffect, useRef } from '@wordpress/element';
-import { createHigherOrderComponent } from '@wordpress/compose';
 import { useRegistry } from '@wordpress/data';
 
-export function useBlockSync( {
+export default function useBlockSync( {
 	clientId = null,
 	value: controlledBlocks,
 	onChange = noop,
@@ -148,13 +147,3 @@ export function useBlockSync( {
 		}
 	}, [ controlledBlocks, clientId ] );
 }
-
-export const withBlockEntitySync = createHigherOrderComponent(
-	( WrappedComponent ) => ( props ) => {
-		if ( props.value ) {
-			useBlockSync( props );
-		}
-		return <WrappedComponent { ...props } />;
-	},
-	'withBlockEntitySync'
-);

@@ -1,7 +1,6 @@
 /**
  * WordPress dependencies
  */
-import { compose } from '@wordpress/compose';
 import { useDispatch } from '@wordpress/data';
 import { useEffect } from '@wordpress/element';
 
@@ -9,7 +8,7 @@ import { useEffect } from '@wordpress/element';
  * Internal dependencies
  */
 import withRegistryProvider from './with-registry-provider';
-import { useBlockSync } from './use-block-sync';
+import useBlockSync from './use-block-sync';
 
 /** @typedef {import('@wordpress/data').WPDataRegistry} WPDataRegistry */
 
@@ -27,4 +26,4 @@ function BlockEditorProvider( props ) {
 	return children;
 }
 
-export default compose( [ withRegistryProvider ] )( BlockEditorProvider );
+export default withRegistryProvider( BlockEditorProvider );
