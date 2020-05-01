@@ -58,7 +58,11 @@ export default function useBlockSync( {
 			__unstableIsLastBlockChangeIgnored,
 		} = registry.select( 'core/block-editor' );
 
-		let blocks = getBlocks( clientId );
+		// The very first time `subscribe` runs, we want to dispatch an input
+		// or change to the parent entity so that it knows about things like
+		// selectionStart and selectionEnd from the block editor. So keep blocks
+		// empty at first so that `areBlocksDifferent` is true.
+		let blocks;
 		let isPersistent = isLastBlockChangePersistent();
 		let previousAreBlocksDifferent = false;
 
