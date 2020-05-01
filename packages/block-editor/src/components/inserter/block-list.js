@@ -16,7 +16,10 @@ import {
  * WordPress dependencies
  */
 import { __, _x, _n, sprintf } from '@wordpress/i18n';
-import { withSpokenMessages } from '@wordpress/components';
+import {
+	withSpokenMessages,
+	__experimentalUseSlot as useSlot,
+} from '@wordpress/components';
 import { addQueryArgs } from '@wordpress/url';
 import { controlsRepeat } from '@wordpress/icons';
 import { speak } from '@wordpress/a11y';
@@ -186,6 +189,10 @@ function InserterBlockList( {
 
 	const hasItems = ! isEmpty( filteredItems );
 	const hasChildItems = childItems.length > 0;
+	const slot = { fills: [ 'test' ] }; //useSlot( __experimentalInserterMenuExtension.Slot.slotName );
+	const hasInserterExtensionFills = Boolean(
+		slot.fills && slot.fills.length
+	);
 
 	return (
 		<div>
@@ -271,34 +278,25 @@ function InserterBlockList( {
 				</InserterPanel>
 			) }
 
-			<__experimentalInserterMenuExtension.Slot
-				fillProps={ {
-					onSelect: onSelectItem,
-					onHover,
-					filterValue,
-					hasItems,
-				} }
-			>
-				{ ( fills ) => {
-					if ( fills.length ) {
-						return (
-							<InserterPanel
-								title={ _x( 'Search Results', 'blocks' ) }
-							>
-								{ fills }
-							</InserterPanel>
-						);
-					}
-					if ( ! hasItems ) {
-						return (
-							<p className="block-editor-inserter__no-results">
-								{ __( 'No blocks found.' ) }
-							</p>
-						);
-					}
-					return null;
-				} }
-			</__experimentalInserterMenuExtension.Slot>
+			{ hasInserterExtensionFills && ! hasItems && (
+				<InserterPanel title={ _x( 'Search Results', 'blocks' ) }>
+					<__experimentalInserterMenuExtension.Slot
+						bubblesVirtually
+						fillProps={ {
+							onSelect: onSelectItem,
+							onHover,
+							filterValue,
+							hasItems,
+						} }
+					/>
+				</InserterPanel>
+			) }
+
+			{ ! hasInserterExtensionFills && ! hasItems && (
+				<p className="block-editor-inserter__no-results">
+					{ __( 'No blocks found.' ) }
+				</p>
+			) }
 		</div>
 	);
 }
