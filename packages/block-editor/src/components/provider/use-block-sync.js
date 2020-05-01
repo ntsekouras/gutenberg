@@ -12,6 +12,7 @@ import { useRegistry } from '@wordpress/data';
 export default function useBlockSync( {
 	clientId = null,
 	value: controlledBlocks,
+	isDisabled = false,
 	onChange = noop,
 	onInput = noop,
 	selectionStart: controlledSelectionStart,
@@ -51,6 +52,13 @@ export default function useBlockSync( {
 	// is an effect so that the subscriber can run synchronously without
 	// waiting for React renders for changes.
 	useEffect( () => {
+		// We never want to update the controller with block-editor changes if
+		// the component is marked as disabled. Typically, this means that the
+		// component is within a BlockPreview.
+		if ( isDisabled ) {
+			return;
+		}
+
 		const {
 			getSelectionStart,
 			getSelectionEnd,

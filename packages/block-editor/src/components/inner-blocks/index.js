@@ -7,6 +7,7 @@ import classnames from 'classnames';
 /**
  * WordPress dependencies
  */
+import { Disabled } from '@wordpress/components';
 import { useViewportMatch } from '@wordpress/compose';
 import { forwardRef, useRef, useEffect } from '@wordpress/element';
 import { useSelect, useDispatch } from '@wordpress/data';
@@ -265,10 +266,21 @@ const ForwardedInnerBlocks = forwardRef( ( props, ref ) => {
 	};
 
 	// Detects if the InnerBlocks should be controlled by an incoming value.
-	if ( props.value && props.onChange ) {
-		return <ControlledInnerBlocks { ...allProps } />;
-	}
-	return <UncontrolledInnerBlocks { ...allProps } />;
+	return (
+		<Disabled.Consumer>
+			{ ( isDisabled ) => {
+				if ( props.value && props.onChange ) {
+					return (
+						<ControlledInnerBlocks
+							isDisabled={ isDisabled }
+							{ ...allProps }
+						/>
+					);
+				}
+				return <UncontrolledInnerBlocks { ...allProps } />;
+			} }
+		</Disabled.Consumer>
+	);
 } );
 
 // Expose default appender placeholders as components.
