@@ -1,17 +1,11 @@
 /**
  * WordPress dependencies
  */
-import { SVG, Path, Rect } from '@wordpress/primitives';
+import { SVG, Path } from '@wordpress/primitives';
 
 const home = (
-	<SVG xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
-		<Path
-			d="M0.75 15.25V4.33282L8 0.832823L15.25 4.33282V15.25H0.75Z"
-			fill="white"
-			stroke="black"
-			strokeWidth="1.5"
-		/>
-		<Rect x="6" y="9" width="4" height="7" fill="black" />
+	<SVG xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+		<Path d="M12 4L4 7.9V20h16V7.9L12 4zm6.5 14.5H14V13h-4v5.5H5.5V8.8L12 5.7l6.5 3.1v9.7z" />
 	</SVG>
 );
 
